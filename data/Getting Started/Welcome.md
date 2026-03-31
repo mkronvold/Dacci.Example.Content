@@ -2,6 +2,7 @@
 tags:
   - example
   - getting-started
+  - testtag
 ---
 # Welcome
 
