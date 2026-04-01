@@ -1,12 +1,12 @@
 # Dacci.Example.Content
 
-This repository is a small example of the content-repo shape that Dacci expects.
+This repository is a small example of the content-repo shape that Dacci expects today.
 
-Use it as a reference when you create a new content repository or when you want a safe repo for manual multi-repo testing.
+Use it as a safe repo for testing workspace discovery, repo switching, document editing, manual push, and background pull without touching production content.
 
-## Required repository shape
+## Repository shape
 
-A Dacci content repo must be a normal Git checkout with a `data/` directory at the repo root:
+A Dacci content repo is a normal Git checkout with Markdown content under `data/`:
 
 ```text
 your-content-repo/
@@ -18,18 +18,32 @@ your-content-repo/
 
 Minimum requirements:
 
-- the repository root must be a real Git repository
+- the repository root must be a real Git checkout
 - Markdown content must live under `data/`
-- Dacci should be pointed at the repo root, not directly at `data/`
+- Dacci should point at the repository root, not directly at `data/`
 
-## Suggested setup steps
+## Recommended local layout
 
-Create a repo with the expected branch and folder layout:
+The packaged runtime now expects workspace repos under the Dacci repo's local `workspace/` directory:
+
+```text
+dacci/
+  workspace/
+    Dacci.Example.Content/
+      .git/
+      data/
+```
+
+When this repo is cloned there, Dacci discovers it automatically at startup.
+
+## Creating a repo like this
+
+If you want to make another repo with the same shape:
 
 ```bash
 mkdir Your.Content.Repo
 cd Your.Content.Repo
-git init --initial-branch=default
+git init --initial-branch=main
 mkdir -p data/Getting\ Started
 cat > data/Getting\ Started/Welcome.md <<'EOF'
 # Welcome
@@ -38,65 +52,65 @@ This is a Dacci content repo.
 EOF
 git add data
 git commit -m "Initial content"
-```
-
-If you want sync pull and push to work, add an SSH remote and push the branch:
-
-```bash
 git remote add origin git@github.com:YOUR-ORG/YOUR-CONTENT-REPO.git
-git push -u origin default
+git push -u origin main
 ```
 
-## Adding the repo in Dacci
+## Using this repo with Dacci
 
-When Dacci and the content repo are both running on the host:
+Preferred flow:
 
-- add the repo from the Library panel
-- set the repository root to the full checkout path
-- leave the content root blank unless you intentionally keep content somewhere other than `repoRoot/data`
-- enter the GitHub username whose SSH key should be used for pull and push
+- clone this repo into `dacci/workspace/Dacci.Example.Content`
+- start Dacci from the app repo with `./scripts/up`
+- open the Library panel only if you want to confirm discovery or save a browser-local override
 
-Docker note:
-
-- Dacci-in-Docker needs the in-container repo path, not the host path
-- for the default sibling layout, `/home/.../Dacci.Example.Content` on the host becomes `/library-workspace/Dacci.Example.Content` inside the container
-
-## SSH key naming for Docker sync
-
-The packaged Docker runtime expects the mounted host SSH directory to contain:
-
-- `known_hosts`
-- one private key file per GitHub username, named exactly as that username
-
-Example:
+The packaged runtime exposes workspace repos inside the container as `/workspace/<repo-name>`. For this repo, the in-container path is:
 
 ```text
-~/.ssh/
-  known_hosts
-  mkronvold
-  teammate-a
+/workspace/Dacci.Example.Content
 ```
 
-When a saved Dacci repo entry stores username `mkronvold`, the API container will use the mounted file `~/.ssh/mkronvold` for Git operations in that browser session.
-
-## Content authoring notes
-
-Keep these changes inside `data/` when using Dacci sync:
-
-- add, edit, rename, move, or delete Markdown files
-- create or rename topic and subtopic folders
-
-Avoid mixing unrelated repo changes on the same branch before using sync:
-
-- changes outside `data/`
-- rebases or branch surgery you have not finished
-- broken `.git` state or missing upstream configuration
-
-## Example Library entry
-
-For this local example repo:
+If you add it manually instead of relying on discovery, use:
 
 - Name: `Dacci Example Content`
-- Repository root: `/home/mkronvold/src/Dacci.Example.Content`
+- Repository root: `/workspace/Dacci.Example.Content`
 - Content root override: leave blank
-- GitHub username: your own GitHub username
+- Sync branch: `main`
+
+## Git access in Docker
+
+The packaged Docker runtime uses a staged copy of the host `~/.ssh` directory, resolves SSH-config symlinks before mounting it, and forwards `SSH_AUTH_SOCK` when available.
+
+Before using Dacci sync, make sure the same checkout already works with plain Git from the host:
+
+```bash
+git pull
+git push
+```
+
+That same SSH setup is what Dacci will reuse for pull and push.
+
+## Sync expectations
+
+Dacci sync is intended for content changes under `data/`.
+
+Good candidates:
+
+- editing Markdown files
+- creating, renaming, or moving content files
+- creating or renaming topic and subtopic folders
+
+Handle these with Git directly instead of Dacci sync:
+
+- changes outside `data/`
+- repo maintenance such as rebases, resets, or branch surgery
+- editor settings or other non-content files mixed into the same branch
+
+Background pull only performs guarded pulls. Push stays manual.
+
+## What to try in this repo
+
+- edit `data/Getting Started/Welcome.md`
+- test repo switching from the Library panel
+- verify manual pull and push against a safe repo
+- test background pull behavior without touching production content
